@@ -54,8 +54,8 @@ static int rtl_read_rom_version(struct hci_dev *hdev, u8 *version)
 	}
 
 	rom_version = (struct rtl_rom_version_evt *)skb->data;
-	BT_INFO("%s: rom_version status=%x version=%x",
-		hdev->name, rom_version->status, rom_version->version);
+	bt_dev_info(hdev, "rom_version status=%x version=%x",
+		    rom_version->status, rom_version->version);
 
 	*version = rom_version->version;
 
@@ -262,7 +262,7 @@ static int btrtl_setup_rtl8723a(struct hci_dev *hdev)
 	const struct firmware *fw;
 	int ret;
 
-	BT_INFO("%s: rtl: loading rtl_bt/rtl8723a_fw.bin", hdev->name);
+	bt_dev_info(hdev, "rtl: loading rtl_bt/rtl8723a_fw.bin");
 	ret = request_firmware(&fw, "rtl_bt/rtl8723a_fw.bin", &hdev->dev);
 	if (ret < 0) {
 		BT_ERR("%s: Failed to load rtl_bt/rtl8723a_fw.bin", hdev->name);
@@ -297,7 +297,7 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
 	const struct firmware *fw;
 	int ret;
 
-	BT_INFO("%s: rtl: loading %s", hdev->name, fw_name);
+	bt_dev_info(hdev, "rtl: loading %s", fw_name);
 	ret = request_firmware(&fw, fw_name, &hdev->dev);
 	if (ret < 0) {
 		BT_ERR("%s: Failed to load %s", hdev->name, fw_name);
@@ -351,9 +351,10 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 		return -PTR_ERR(skb);
 
 	resp = (struct hci_rp_read_local_version *)skb->data;
-	BT_INFO("%s: rtl: examining hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
-		"lmp_subver=%04x", hdev->name, resp->hci_ver, resp->hci_rev,
-		resp->lmp_ver, resp->lmp_subver);
+	bt_dev_info(hdev, "rtl: examining hci_ver=%02x hci_rev=%04x "
+		    "lmp_ver=%02x lmp_subver=%04x",
+		    resp->hci_ver, resp->hci_rev,
+		    resp->lmp_ver, resp->lmp_subver);
 
 	lmp_subver = le16_to_cpu(resp->lmp_subver);
 	kfree_skb(skb);
@@ -378,7 +379,7 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 		return btrtl_setup_rtl8723b(hdev, lmp_subver,
 					    "rtl_bt/rtl8761a_fw.bin");
 	default:
-		BT_INFO("rtl: assuming no firmware upload needed.");
+		bt_dev_info(hdev, "rtl: assuming no firmware upload needed");
 		return 0;
 	}
 }

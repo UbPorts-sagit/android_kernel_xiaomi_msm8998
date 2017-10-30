@@ -121,8 +121,8 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		BT_ERR("%s no memory for command (opcode 0x%4.4x)",
-		       hdev->name, opcode);
+		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+			   opcode);
 		req->err = -ENOMEM;
 		return;
 	}
@@ -355,7 +355,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 
 		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
 		if (err < 0) {
-			BT_ERR("%s failed to generate new RPA", hdev->name);
+			bt_dev_err(hdev, "failed to generate new RPA");
 			return err;
 		}
 
@@ -659,7 +659,7 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
 
 	err = hci_req_run(&req, abort_conn_complete);
 	if (err && err != -ENODATA) {
-		BT_ERR("Failed to run HCI request: err %d", err);
+		bt_dev_err(conn->hdev, "failed to run HCI request: err %d", err);
 		return err;
 	}
 
