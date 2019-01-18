@@ -4596,12 +4596,8 @@ static int tasha_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (!(strcmp(w->name, "RX INT2 DAC"))) {
-#ifdef CONFIG_MACH_XIAOMI_MSM8998
-			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x20, 0x00);
-#endif
+		if (!(strcmp(w->name, "RX INT2 DAC")))
 			snd_soc_update_bits(codec, WCD9335_ANA_HPH, 0x30, 0x00);
-		}
 		if ((hph_mode == CLS_H_LP) &&
 		   (TASHA_IS_1_1(wcd9xxx))) {
 			snd_soc_update_bits(codec, WCD9335_HPH_L_DAC_CTL,
