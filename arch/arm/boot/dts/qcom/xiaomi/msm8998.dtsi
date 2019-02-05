@@ -124,6 +124,12 @@
 		pmsg-size = <0x0 0x80000>; /* 512 KB */
 		record-size = <0x0 0x20000>; /* 128 KB */
 	};
+
+	thermal-message {
+		thermal,batt-array-size = "8";
+		thermal,batt-level-screen-on = "5 10 11 12 13 14 14 16";
+		thermal,batt-level-screen-off = "0 2 4 6 8 10 14 16";
+	};
 };
 
 &wdog {
