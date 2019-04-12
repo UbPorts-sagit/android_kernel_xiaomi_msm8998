@@ -951,7 +951,7 @@ EXPORT_SYMBOL_GPL(idle_notifier_register);
 void idle_notifier_unregister(struct notifier_block *n)
 {
 	atomic_notifier_chain_unregister(&idle_notifier, n);
-}
+}	
 EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 
 void idle_notifier_call_chain(unsigned long val)
@@ -959,3 +959,16 @@ void idle_notifier_call_chain(unsigned long val)
 	atomic_notifier_call_chain(&idle_notifier, val, NULL);
 }
 EXPORT_SYMBOL_GPL(idle_notifier_call_chain);
+
+enum cpu_mitigations cpu_mitigations = CPU_MITIGATIONS_AUTO;
+
+static int __init mitigations_parse_cmdline(char *arg)
+{
+	if (!strcmp(arg, "off"))
+		cpu_mitigations = CPU_MITIGATIONS_OFF;
+	else if (!strcmp(arg, "auto"))
+		cpu_mitigations = CPU_MITIGATIONS_AUTO;
+
+	return 0;
+}
+early_param("mitigations", mitigations_parse_cmdline);
