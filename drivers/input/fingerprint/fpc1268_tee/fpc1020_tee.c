@@ -39,8 +39,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
-#include <linux/fb.h>
 
 #define FPC1020_NAME "fpc1020"
 
@@ -91,9 +89,6 @@ struct fpc1020_data {
 
 	struct input_handler input_handler;
 	bool report_key_events;
-	
-	struct notifier_block fb_notifier;
-	bool fb_black;	
 };
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
@@ -615,43 +610,6 @@ static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 	return 0;
 }
 
-static int fpc_fb_notif_callback(struct notifier_block *nb,
- 		unsigned long val, void *data)
- {
- 	struct fpc1020_data *fpc1020 = container_of(nb, struct fpc1020_data,
- 		fb_notifier);
- 	struct fb_event *evdata = data;
- 	unsigned int blank;
- 
- 	if (!fpc1020)
- 		return 0;
- 
- 	if (val != FB_EVENT_BLANK || fpc1020->prepared == false)
- 		return 0;
- 
- 	pr_debug("[info] %s value = %d\n", __func__, (int)val);
- 
- 	if (evdata && evdata->data && val == FB_EVENT_BLANK) {
- 		blank = *(int *)(evdata->data);
-		switch (blank) {
-		case FB_BLANK_POWERDOWN:
-			fpc1020->fb_black = true;
-			break;
-		case FB_BLANK_UNBLANK:
-			fpc1020->fb_black = false;
-			break;
-		default:
-			pr_debug("%s defalut\n", __func__);
- 			break;
- 		}
- 	}
- 	return NOTIFY_OK;
- }
-
-static struct notifier_block fpc_notif_block = {
- 	.notifier_call = fpc_fb_notif_callback,
- };
-
 static int fpc1020_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -735,11 +693,6 @@ static int fpc1020_probe(struct platform_device *pdev)
 		dev_info(dev, "Enabling hardware\n");
 		(void)device_prepare(fpc1020, true);
 	}
-
-	fpc1020->fb_black = false;
-	fpc1020->fb_notifier = fpc_notif_block;
-	fb_register_client(&fpc1020->fb_notifier);
-
 	dev_info(dev, "%s: ok\n", __func__);
 exit:
 	return rc;
@@ -764,31 +717,11 @@ static struct of_device_id fpc1020_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fpc1020_of_match);
 
-static int fpc1020_pm_suspend(struct device *dev)
-{
-	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-	dev_dbg(fpc1020->dev, "%s \n", __func__);
-	return 0;
-}
-
-static int fpc1020_pm_resume(struct device *dev)
-{
-	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-	dev_dbg(fpc1020->dev, "%s \n", __func__);
-	return 0;
-}
-
-static const struct dev_pm_ops fpc1020_dev_pm_ops = {
-	.suspend = fpc1020_pm_suspend,
-	.resume  = fpc1020_pm_resume,
-};
-
 static struct platform_driver fpc1020_driver = {
 	.driver = {
 		.name	= FPC1020_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = fpc1020_of_match,
-		.pm = &fpc1020_dev_pm_ops,		
 	},
 	.probe	= fpc1020_probe,
 	.remove	= fpc1020_remove,
