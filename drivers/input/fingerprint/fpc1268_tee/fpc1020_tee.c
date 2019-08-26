@@ -95,53 +95,7 @@ struct fpc1020_data {
 	struct notifier_block fb_notifier;
 	bool fb_black;	
 	bool proximity_state; /* 0:far 1:near */
-
-	struct work_struct pm_work;	
 };
-
-static void config_irq(struct fpc1020_data *fpc1020, bool enabled)
-{
-	static bool irq_enabled = true;
-
-	if (enabled != irq_enabled) {
-		if (enabled)
-			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
-		else
-			disable_irq(gpio_to_irq(fpc1020->irq_gpio));
-
-		dev_info(fpc1020->dev, "%s: %s fpc irq ---\n", __func__,
-			enabled ?  "enable" : "disable");
-		irq_enabled = enabled;
-	} else {
-		dev_info(fpc1020->dev, "%s: dual config irq status: %s\n", __func__,
-			enabled ?  "true" : "false");
-	}
-}
-
-static void fpc1020_suspend_resume(struct work_struct *work)
-{
-	struct fpc1020_data *fpc1020 =
-		container_of(work, typeof(*fpc1020), pm_work);
-
-	if (!fpc1020->fb_black) {
-		/* Unconditionally enable IRQ when screen turns on */
-		mutex_lock(&fpc1020->lock);
-		config_irq(fpc1020, true);
-		mutex_unlock(&fpc1020->lock);
-	} else {
-			/*
-			 * Disable IRQ when screen turns off,
-			 * if fingerprint wake up is disabled,
-			 * or proximity sensor is covered
-			 */
-			if (!atomic_read(&fpc1020->wakeup_enabled) ||
-					fpc1020->proximity_state) {
-				mutex_lock(&fpc1020->lock);
-				config_irq(fpc1020, false);
-				mutex_unlock(&fpc1020->lock);
-			}
-	}
-}
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
@@ -425,6 +379,25 @@ static ssize_t hw_reset_set(struct device *dev,
 	return rc ? rc : count;
 }
 static DEVICE_ATTR(hw_reset, S_IWUSR, NULL, hw_reset_set);
+
+static void config_irq(struct fpc1020_data *fpc1020, bool enabled)
+{
+	static bool irq_enabled = true;
+
+	if (enabled != irq_enabled) {
+		if (enabled)
+			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		else
+			disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+
+		dev_info(fpc1020->dev, "%s: %s fpc irq ---\n", __func__,
+			enabled ?  "enable" : "disable");
+		irq_enabled = enabled;
+	} else {
+		dev_info(fpc1020->dev, "%s: dual config irq status: %s\n", __func__,
+			enabled ?  "true" : "false");
+	}
+}
 
 /**
  * Will setup GPIOs, and regulators to correctly initialize the touch sensor to
@@ -715,12 +688,25 @@ static int fpc_fb_notif_callback(struct notifier_block *nb,
 		switch (blank) {
 		case FB_BLANK_POWERDOWN:
 			fpc1020->fb_black = true;
-			queue_work(system_highpri_wq, &fpc1020->pm_work);
+			/*
+			 * Disable IRQ when screen turns off,
+			 * if fingerprint wake up is disabled,
+			 * or proximity sensor is covered
+			 */
+			if (!atomic_read(&fpc1020->wakeup_enabled) ||
+					fpc1020->proximity_state) {
+				mutex_lock(&fpc1020->lock);
+				config_irq(fpc1020, false);
+				mutex_unlock(&fpc1020->lock);
+			}
 			break;
 		case FB_BLANK_UNBLANK:
 		case FB_BLANK_NORMAL:
 			fpc1020->fb_black = false;
-			queue_work(system_highpri_wq, &fpc1020->pm_work);
+			/* Unconditionally enable IRQ when screen turns on */
+			mutex_lock(&fpc1020->lock);
+			config_irq(fpc1020, true);
+			mutex_unlock(&fpc1020->lock);
 			break;
 		default:
 			pr_debug("%s defalut\n", __func__);
@@ -819,7 +805,6 @@ static int fpc1020_probe(struct platform_device *pdev)
 	}
 
 	fpc1020->fb_black = false;
-	INIT_WORK(&fpc1020->pm_work, fpc1020_suspend_resume);
 	fpc1020->fb_notifier = fpc_notif_block;
 	fb_register_client(&fpc1020->fb_notifier);
 
